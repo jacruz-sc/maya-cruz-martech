@@ -1,0 +1,9 @@
+node_modules/
+dist/
+coverage/
+.env
+.assessment/
+.assessment.zip
+extract-assessment.ps1
+npm-debug.log*
+*.tsbuildinfo
