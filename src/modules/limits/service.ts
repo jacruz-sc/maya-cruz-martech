@@ -1,6 +1,6 @@
 import type { Knex } from 'knex';
 import { MONEY } from '../../config/constants.js';
-import { TransactionRepository } from '../../database/repositories.js';
+import type { LimitsRepository } from './limits.repository.js';
 import { getLimitWindows } from '../../utils/date-boundaries.js';
 
 export interface LimitUsage {
@@ -17,10 +17,10 @@ export function calculateRemaining(usedCentavos: number, limitCentavos: number) 
 }
 
 export class LimitService {
-  private readonly transactions: TransactionRepository;
-  constructor(private readonly db: Knex) {
-    this.transactions = new TransactionRepository(db);
-  }
+  constructor(
+    private readonly transactions: LimitsRepository,
+    private readonly db: Knex
+  ) {}
 
   async usage(userId: string, trx: Knex | Knex.Transaction = this.db) {
     const windows = getLimitWindows();

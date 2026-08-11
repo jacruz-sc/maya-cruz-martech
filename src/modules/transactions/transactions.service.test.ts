@@ -1,4 +1,4 @@
-import { TransactionService } from '../../src/modules/transactions/service.js';
+import { TransactionService } from './service.js';
 
 const user = (id: string, balance: number) => ({
   id,
@@ -26,7 +26,12 @@ function makeService() {
   const fakeDb = {
     transaction: (callback: (trx: object) => unknown) => Promise.resolve(callback({}))
   };
-  const service = new TransactionService(fakeDb as never) as never as {
+  const service = new TransactionService(
+    fakeDb as never,
+    {} as never,
+    {} as never,
+    {} as never
+  ) as never as {
     transfer: TransactionService['transfer'];
     users: { findById: jest.Mock; lockUsers: jest.Mock; updateBalance: jest.Mock };
     transactions: { findByIdempotency: jest.Mock; create: jest.Mock };
@@ -44,7 +49,7 @@ function makeService() {
     create: jest.fn(() => created)
   };
   service.limits = { assertCanSpend: jest.fn() };
-  return { service, sender, recipient, created };
+  return { service, sender, created };
 }
 
 test('performs an atomic successful transfer through the service', async () => {
@@ -60,7 +65,6 @@ test('performs an atomic successful transfer through the service', async () => {
   expect(service.users.updateBalance).toHaveBeenCalledTimes(2);
   expect(service.transactions.create).toHaveBeenCalledTimes(1);
 });
-
 test('rejects self-transfer before balance mutation', async () => {
   const { service } = makeService();
   await expect(
@@ -73,7 +77,6 @@ test('rejects self-transfer before balance mutation', async () => {
   ).rejects.toMatchObject({ code: 'SELF_TRANSFER' });
   expect(service.users.updateBalance).not.toHaveBeenCalled();
 });
-
 test('rejects a missing recipient', async () => {
   const { service } = makeService();
   await expect(
@@ -85,7 +88,6 @@ test('rejects a missing recipient', async () => {
     })
   ).rejects.toMatchObject({ code: 'RECIPIENT_NOT_FOUND' });
 });
-
 test('rejects insufficient balance', async () => {
   const { service, sender } = makeService();
   sender.balance_centavos = 10;

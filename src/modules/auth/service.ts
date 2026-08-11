@@ -1,13 +1,9 @@
 import bcrypt from 'bcrypt';
-import type { Knex } from 'knex';
 import { AppError } from '../../utils/app-error.js';
-import { UserRepository } from '../../database/repositories.js';
+import type { AuthRepository } from './auth.repository.js';
 
 export class AuthService {
-  private readonly users: UserRepository;
-  constructor(private readonly db: Knex) {
-    this.users = new UserRepository(db);
-  }
+  constructor(private readonly users: AuthRepository) {}
 
   async register(input: { email: string; displayName: string; password: string }) {
     const existing = await this.users.findByEmail(input.email);

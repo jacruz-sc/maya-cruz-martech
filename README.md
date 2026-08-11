@@ -42,11 +42,27 @@ Registration is also available at `POST /v1/auth/register` with `email`, `displa
 
 ## Architecture
 
-- Fastify routes handle HTTP concerns and OpenAPI metadata.
-- Zod validates request payloads, query strings, UUIDs, emails, passwords, and pagination.
-- Domain services implement authentication, transfers, and limits; Knex repositories isolate PostgreSQL access.
+Each business module uses a small layered structure:
+
+```text
+src/modules/<module>/
+  <module>.routes.ts       # Fastify paths and Swagger schemas
+  <module>.handler.ts      # HTTP parsing, validation, and status codes
+  <module>.service.ts      # Business rules and workflows
+  <module>.repository.ts   # Knex queries; accepts optional trx
+  <module>.transformer.ts  # Stable API response shapes
+  <module>.service.test.ts # Service-focused unit tests
+```
+
+The modules are `auth`, `users`, `transactions`, `limits`, and `system`. `src/app.ts` is only the composition root: it configures Fastify, creates repositories/services, registers routes, and installs cross-cutting hooks.
+
+- Fastify routes handle paths and OpenAPI metadata.
+- Handlers validate request payloads, query strings, UUIDs, emails, passwords, and pagination with Zod, then delegate immediately.
+- Services implement authentication, transfers, and limits; they own business decisions and transaction boundaries.
+- Repositories isolate PostgreSQL access and accept `trx?: Knex.Transaction`. They use `trx ?? db` and never open or commit transactions themselves.
+- Transformers keep successful and error response formats stable at the HTTP boundary.
 - Money is stored as integer centavos (`BIGINT`) and formatted as PHP strings at the API boundary.
-- A transfer locks sender and recipient rows in sorted UUID order inside one database transaction. It checks balance, idempotency, and limits before updating both balances and inserting the completed ledger row.
+- A transfer service starts one database transaction, then passes its `trx` to user, limit, and transaction repositories. It locks sender and recipient rows in sorted UUID order, checks balance/idempotency/limits, updates both balances, and inserts the completed ledger row.
 - The sender lock serializes concurrent outgoing transfers, so limit aggregation and balance checks cannot double-spend. Idempotency keys make client retries safe.
 - Calendar windows are calculated in `Asia/Manila` and converted to UTC half-open ranges for PostgreSQL aggregation. Only completed transfers count toward usage.
 

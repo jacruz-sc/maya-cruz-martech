@@ -1,21 +1,23 @@
 import type { Knex } from 'knex';
 import { AppError } from '../../utils/app-error.js';
 import { parseAmountToCentavos } from '../../utils/money.js';
-import {
-  UserRepository,
-  TransactionRepository,
-  type HistoryQuery
-} from '../../database/repositories.js';
-import { LimitService } from '../limits/service.js';
+import type { UsersRepository } from '../users/users.repository.js';
+import type { TransactionsRepository, HistoryQuery } from './transactions.repository.js';
+import type { LimitService } from '../limits/service.js';
 
 export class TransactionService {
-  private readonly users: UserRepository;
-  private readonly transactions: TransactionRepository;
+  private readonly users: UsersRepository;
+  private readonly transactions: TransactionsRepository;
   private readonly limits: LimitService;
-  constructor(private readonly db: Knex) {
-    this.users = new UserRepository(db);
-    this.transactions = new TransactionRepository(db);
-    this.limits = new LimitService(db);
+  constructor(
+    private readonly db: Knex,
+    users: UsersRepository,
+    transactions: TransactionsRepository,
+    limits: LimitService
+  ) {
+    this.users = users;
+    this.transactions = transactions;
+    this.limits = limits;
   }
 
   async transfer(input: {

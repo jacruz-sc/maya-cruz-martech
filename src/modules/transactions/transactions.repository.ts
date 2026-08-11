@@ -1,35 +1,5 @@
 import type { Knex } from 'knex';
-import type { TransactionRecord, UserRecord } from '../types/domain.js';
-
-export class UserRepository {
-  constructor(private readonly db: Knex) {}
-
-  findByEmail(email: string, trx: Knex | Knex.Transaction = this.db) {
-    return trx<UserRecord>('users').where({ email }).first();
-  }
-
-  findById(id: string, trx: Knex | Knex.Transaction = this.db) {
-    return trx<UserRecord>('users').where({ id }).first();
-  }
-
-  async create(
-    data: { email: string; display_name: string; password_hash: string },
-    trx: Knex | Knex.Transaction = this.db
-  ) {
-    const rows = await trx<UserRecord>('users').insert(data).returning('*');
-    return rows[0]!;
-  }
-
-  lockUsers(ids: string[], trx: Knex.Transaction) {
-    return trx<UserRecord>('users').whereIn('id', ids).orderBy('id').forUpdate();
-  }
-
-  updateBalance(id: string, balanceCentavos: number, trx: Knex.Transaction) {
-    return trx('users')
-      .where({ id })
-      .update({ balance_centavos: balanceCentavos, updated_at: trx.fn.now() });
-  }
-}
+import type { TransactionRecord } from '../../types/domain.js';
 
 export interface HistoryQuery {
   userId: string;
@@ -40,31 +10,17 @@ export interface HistoryQuery {
   to: Date | undefined;
   direction: 'sent' | 'received' | undefined;
 }
-
-export class TransactionRepository {
+export class TransactionsRepository {
   constructor(private readonly db: Knex) {}
-
   findByIdempotency(senderId: string, key: string, trx: Knex.Transaction) {
     return trx<TransactionRecord>('transactions')
       .where({ sender_id: senderId, idempotency_key: key })
       .first();
   }
-
   async create(data: Omit<TransactionRecord, 'id' | 'created_at'>, trx: Knex.Transaction) {
     const rows = await trx<TransactionRecord>('transactions').insert(data).returning('*');
     return rows[0]!;
   }
-
-  async sumCompleted(senderId: string, from: Date, to: Date, trx: Knex | Knex.Transaction) {
-    const row = await trx('transactions')
-      .where({ sender_id: senderId, status: 'completed' })
-      .where('created_at', '>=', from)
-      .where('created_at', '<', to)
-      .sum<{ total: string | null }>({ total: 'amount_centavos' })
-      .first();
-    return Number(row?.total ?? 0);
-  }
-
   async history(query: HistoryQuery) {
     const base = this.db('transactions as t')
       .join('users as s', 's.id', 't.sender_id')
